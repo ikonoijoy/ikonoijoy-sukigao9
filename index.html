@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>イコノイジョイ 好き顔9選</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;background:#fff7fb;color:#333}
+.wrap{max-width:680px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:25px;line-height:1.35;text-align:center;margin:12px 0 8px}
+h2{font-size:19px;text-align:center;margin:8px 0 18px}
+p{line-height:1.7}
+.sub{text-align:center;color:#777;font-size:13px;margin:0 0 24px}
+.card{background:#fff;border:1px solid #eadfe6;border-radius:20px;padding:18px;box-shadow:0 5px 20px rgba(0,0,0,.05)}
+button{font:inherit}
+.start,.next,.restart{display:block;width:100%;border:0;border-radius:999px;padding:15px 18px;background:#333;color:#fff;font-weight:700;margin-top:18px}
+.choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.choice{background:#fff;border:2px solid #eadfe6;border-radius:18px;padding:14px 10px;min-height:116px;cursor:pointer;text-align:center;transition:.15s}
+.choice.selected{border-color:#333;background:#f5eef3;transform:translateY(-1px)}
+.avatar{width:64px;height:64px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;background:#eee;font-size:27px;font-weight:700}
+.group{font-size:11px;color:#888;margin-bottom:3px}
+.name{font-weight:700;font-size:14px}
+.note{text-align:center;color:#777;font-size:12px;margin:12px 0}
+.progress{text-align:center;font-size:12px;color:#777;margin:8px 0 14px}
+.hidden{display:none}
+.result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.result{background:#fff;border:1px solid #eadfe6;border-radius:15px;padding:12px 6px;text-align:center}
+.rank{font-size:12px;color:#888;font-weight:700}
+.result .avatar{width:52px;height:52px;font-size:22px}
+.result .name{font-size:12px}
+.small{font-size:11px;color:#777}
+@media(max-width:430px){.choice-grid{gap:8px}.choice{min-height:108px;padding:11px 5px}.avatar{width:58px;height:58px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section id="intro" class="card">
+<h1>イコノイジョイ<br>好き顔9選</h1>
+<p>33人の中から、あなたの「好きな顔」TOP9を診断します。</p>
+<p class="small">試作版：最初のスクリーニングでは全員を評価対象にし、その後は1対1比較を回答に応じて変化させます。</p>
+<button class="start" id="startBtn">診断スタート</button>
+</section>
+
+<section id="quiz" class="hidden">
+<div class="progress" id="progress"></div>
+<div class="card">
+<h2 id="questionTitle"></h2>
+<p class="note" id="questionNote"></p>
+<div id="choices" class="choice-grid"></div>
+<button class="next" id="nextBtn">次へ</button>
+</div>
+</section>
+
+<section id="result" class="hidden card">
+<h2>あなたの好き顔 TOP9</h2>
+<p class="sub">この結果は回答内容をもとにリアルタイムで決定しています。</p>
+<div id="results" class="result-grid"></div>
+<p class="small" style="margin-top:18px">※現在はアルゴリズム検証用の試作版です。写真は後から公式アーティスト写真に差し替え予定です。</p>
+<button class="restart" id="restartBtn">もう一度やる</button>
+</section>
+</div>
+
+<script>
+const members = [
+["=LOVE","大谷 映美里"],["=LOVE","大場 花菜"],["=LOVE","音嶋 莉沙"],["=LOVE","齋藤 樹愛羅"],["=LOVE","佐々木 舞香"],["=LOVE","髙松 瞳"],["=LOVE","瀧脇 笙古"],["=LOVE","野口 衣織"],["=LOVE","諸橋 沙夏"],["=LOVE","山本 杏奈"],
+["≠ME","尾木 波菜"],["≠ME","落合 希来里"],["≠ME","蟹沢 萌子"],["≠ME","河口 夏音"],["≠ME","川中子 奈月心"],["≠ME","櫻井 もも"],["≠ME","鈴木 瞳美"],["≠ME","谷崎 早耶"],["≠ME","冨田 菜々風"],["≠ME","永田 詩央里"],["≠ME","本田 珠由記"],
+["≒JOY","逢田 珠里依"],["≒JOY","天野 香乃愛"],["≒JOY","市原 愛弓"],["≒JOY","江角 怜音"],["≒JOY","大信田 美月"],["≒JOY","大西 葵"],["≒JOY","小澤 愛実"],["≒JOY","髙橋 舞"],["≒JOY","藤沢 莉子"],["≒JOY","村山 結香"],["≒JOY","山田 杏佳"],["≒JOY","山野 愛月"]
+];
+
+let state;
+const $ = id => document.getElementById(id);
+
+function resetState(){
+  state={
+    phase:"screen",
+    screenRound:0,
+    pairRound:0,
+    screenGroups:[],
+    current:null,
+    selected:new Set(),
+    ratings:members.map(()=>1000),
+    games:members.map(()=>0),
+    wins:members.map(()=>0),
+    pairHistory:new Set(),
+    pairQueue:[],
+    minPairs:12,
+    maxPairs:16
+  };
+}
+
+function shuffle(a){
+  a=[...a];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+  return a;
+}
+
+function makeScreenGroups(){
+  const order=shuffle([...Array(members.length).keys()]);
+  // 7 groups of 4 + 1 group of 5. The 5-person group is randomly placed.
+  const fivePos=Math.floor(Math.random()*8);
+  const groups=[]; let p=0;
+  for(let g=0;g<8;g++){
+    const n=g===fivePos?5:4;
+    groups.push(order.slice(p,p+n)); p+=n;
+  }
+  return groups;
+}
+
+function initials(name){
+  return name.replace(/\s/g,"").slice(0,1);
+}
+
+function renderCard(i, selected){
+  const [g,n]=members[i];
+  return `<button class="choice ${selected?"selected":""}" data-id="${i}">
+    <div class="avatar">${initials(n)}</div>
+    <div class="group">${g}</div>
+    <div class="name">${n}</div>
+  </button>`;
+}
+
+function start(){
+  resetState();
+  state.screenGroups=makeScreenGroups();
+  $("intro").classList.add("hidden");
+  $("result").classList.add("hidden");
+  $("quiz").classList.remove("hidden");
+  renderScreen();
+}
+
+function renderScreen(){
+  const group=state.screenGroups[state.screenRound];
+  state.current=group;
+  state.selected=new Set();
+  $("progress").textContent=`STEP 1 / 2　スクリーニング ${state.screenRound+1} / 8`;
+  $("questionTitle").textContent="気になる顔を最大3人選んでね";
+  $("questionNote").textContent="「好き！」でも「ちょっと気になる」でもOK。今回は選ばなかった人も脱落しません。";
+  $("choices").innerHTML=group.map(i=>renderCard(i,false)).join("");
+  $("nextBtn").textContent=state.screenRound===7?"次へ（1対1比較へ）":"次へ";
+  bindChoices(true);
+}
+
+function bindChoices(isScreen){
+  document.querySelectorAll(".choice").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const id=Number(btn.dataset.id);
+      if(isScreen){
+        if(state.selected.has(id)){state.selected.delete(id);btn.classList.remove("selected")}
+        else if(state.selected.size<3){state.selected.add(id);btn.classList.add("selected")}
+      }else{
+        state.selected=new Set([id]);
+        document.querySelectorAll(".choice").forEach(x=>x.classList.remove("selected"));
+        btn.classList.add("selected");
+        $("nextBtn").disabled=false;
+      }
+    });
+  });
+}
+
+function finishScreenRound(){
+  // Every member receives a baseline. Selected = +2, unselected = +1.
+  state.current.forEach(i=>{state.ratings[i]+=state.selected.has(i)?100:50});
+  state.screenRound++;
+  if(state.screenRound<8){renderScreen();return}
+  state.phase="pair";
+  state.pairRound=0;
+  renderPair();
+}
+
+function key(a,b){return a<b?`${a}-${b}`:`${b}-${a}`}
+
+function potential(i){
+  // Upper-confidence-like potential: rating + bonus for members with little pairwise evidence.
+  return state.ratings[i] + 130/(state.games[i]+1);
+}
+
+function choosePair(){
+  const all=[...Array(members.length).keys()];
+  const scored=all.sort((a,b)=>potential(b)-potential(a));
+  const top=Math.min(15,scored.length);
+  const pool=scored.slice(0,top);
+
+  // Every few rounds, force a "rescue" candidate that has not yet had a matchup.
+  const rescue=all.filter(i=>state.games[i]===0 && !pool.includes(i));
+  if(rescue.length && state.pairRound%3===2){
+    const r=rescue[Math.floor(Math.random()*rescue.length)];
+    const anchor=pool[Math.floor(Math.random()*Math.min(6,pool.length))];
+    if(anchor!==r && !state.pairHistory.has(key(anchor,r))) return [anchor,r];
+  }
+
+  let best=null,bestValue=Infinity;
+  for(let x=0;x<pool.length;x++) for(let y=x+1;y<pool.length;y++){
+    const a=pool[x],b=pool[y];
+    if(state.pairHistory.has(key(a,b))) continue;
+    const gap=Math.abs(state.ratings[a]-state.ratings[b]);
+    const boundary=Math.abs((state.ratings[a]+state.ratings[b])/2 - boundaryRating());
+    const gamesPenalty=(state.games[a]+state.games[b])*3;
+    const value=gap*1.2 + boundary*0.35 + gamesPenalty;
+    if(value<bestValue){bestValue=value;best=[a,b]}
+  }
+  if(best)return best;
+
+  // Fallback: any unseen pair.
+  for(let a=0;a<33;a++)for(let b=a+1;b<33;b++){
+    if(!state.pairHistory.has(key(a,b))) return [a,b];
+  }
+  return null;
+}
+
+function boundaryRating(){
+  const vals=[...Array(33).keys()].sort((a,b)=>potential(b)-potential(a));
+  return potential(vals[8]);
+}
+
+function renderPair(){
+  const pair=choosePair();
+  if(!pair || state.pairRound>=state.maxPairs){showResult();return}
+  state.current=pair;
+  state.selected=new Set();
+  state.pairHistory.add(key(pair[0],pair[1]));
+  $("progress").textContent=`STEP 2 / 2　1対1比較 ${state.pairRound+1}`;
+  $("questionTitle").textContent="顔だけでいうと、どっちが好き？";
+  $("questionNote").textContent="直感でOK。迷ったら「今この瞬間に惹かれる方」を選んでね。";
+  $("choices").innerHTML=pair.map(i=>renderCard(i,false)).join("");
+  $("nextBtn").textContent="次へ";
+  $("nextBtn").disabled=true;
+  bindChoices(false);
+}
+
+function finishPair(){
+  const winner=[...state.selected][0];
+  if(winner===undefined)return;
+  const loser=state.current.find(i=>i!==winner);
+  const ra=state.ratings[winner], rb=state.ratings[loser];
+  const ea=1/(1+Math.pow(10,(rb-ra)/400));
+  const k=32;
+  state.ratings[winner]+=k*(1-ea);
+  state.ratings[loser]+=k*(0-ea);
+  state.games[winner]++; state.games[loser]++; state.wins[winner]++;
+  state.pairRound++;
+
+  // Once enough comparisons have happened, stop early only if the TOP9 boundary is clearly separated.
+  if(state.pairRound>=state.minPairs && stableTop9()) showResult();
+  else renderPair();
+}
+
+function stableTop9(){
+  const sorted=[...Array(33).keys()].sort((a,b)=>potential(b)-potential(a));
+  const ninth=potential(sorted[8]), tenth=potential(sorted[9]);
+  return (ninth-tenth)>=55 && state.games[sorted[8]]>=1 && state.games[sorted[9]]>=1;
+}
+
+function showResult(){
+  const sorted=[...Array(33).keys()].sort((a,b)=>{
+    if(state.ratings[b]!==state.ratings[a])return state.ratings[b]-state.ratings[a];
+    return state.wins[b]-state.wins[a];
+  }).slice(0,9);
+  $("quiz").classList.add("hidden");
+  $("result").classList.remove("hidden");
+  $("results").innerHTML=sorted.map((i,rank)=>{
+    const [g,n]=members[i];
+    return `<div class="result">
+      <div class="rank">${rank+1}位</div>
+      <div class="avatar">${initials(n)}</div>
+      <div class="small">${g}</div>
+      <div class="name">${n}</div>
+    </div>`;
+  }).join("");
+}
+
+$("startBtn").addEventListener("click",start);
+$("nextBtn").addEventListener("click",()=>{
+  if(state.phase==="screen")finishScreenRound(); else finishPair();
+});
+$("restartBtn").addEventListener("click",start);
+startState=resetState; resetState();
+</script>
+</body>
+</html>
