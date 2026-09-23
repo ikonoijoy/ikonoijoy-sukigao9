@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>イコノイジョイ 好き顔9選｜試作版</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff7fb;color:#3b3036;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif}
+  .wrap{max-width:760px;margin:auto;padding:28px 18px 50px}
+  h1{font-size:clamp(28px,7vw,44px);margin:10px 0 8px;text-align:center;letter-spacing:.04em}
+  .lead{text-align:center;color:#806e77;margin:0 0 26px}
+  .card{background:#fff;border:1px solid #f0dce6;border-radius:24px;padding:22px;box-shadow:0 8px 25px rgba(100,60,80,.06)}
+  .progress{text-align:center;font-size:13px;color:#9b7f8c;margin-bottom:18px}
+  .choices{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  button{font:inherit;border:0;cursor:pointer}
+  .choice{min-height:105px;background:#fff8fc;border:2px solid #f0d9e5;border-radius:18px;padding:18px 10px;font-weight:700;transition:.15s}
+  .choice:hover{transform:translateY(-2px);border-color:#d99ab8;background:#fff1f7}
+  .choice.selected{border-color:#bd6792;background:#fbe4ef}
+  .member-group{font-size:12px;color:#a2798c;font-weight:500;margin-bottom:6px}
+  .name{font-size:18px}
+  .note{text-align:center;font-size:13px;color:#8e7b84;margin-top:16px}
+  .result{display:none}
+  .result h2{text-align:center;font-size:28px;margin:5px 0 22px}
+  .rank{display:flex;align-items:center;gap:14px;padding:12px 8px;border-bottom:1px solid #f2e5eb}
+  .ranknum{width:34px;text-align:center;font-weight:800}
+  .rank:nth-child(2) .ranknum,.rank:nth-child(3) .ranknum,.rank:nth-child(4) .ranknum{font-size:21px}
+  .rankname{font-weight:700;font-size:17px}
+  .rankgroup{font-size:12px;color:#a18491;margin-left:auto}
+  .again{display:block;margin:24px auto 0;background:#4b3742;color:white;border-radius:999px;padding:12px 28px}
+  .intro{text-align:center}
+  .start{background:#c45d8f;color:white;border-radius:999px;padding:14px 34px;font-weight:800;font-size:17px}
+  .start:hover,.again:hover{opacity:.9}
+  .small{font-size:12px;color:#9b8790;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="intro" class="card intro">
+    <h1>イコノイジョイ<br>好き顔9選♡</h1>
+    <p class="lead">33人の中から、あなたの「好きな顔」を選んでみよう！</p>
+    <button class="start" id="startButton">スタート♡</button>
+    <p class="small">※試作版：まずは名前だけで遊べるバージョンです</p>
+  </section>
+
+  <section id="game" class="card" style="display:none">
+    <div class="progress" id="progress"></div>
+    <div class="choices" id="choices"></div>
+    <div class="note">この中で「好き！」と思うメンバーを選んでね♡</div>
+  </section>
+
+  <section id="result" class="card result">
+    <h2>あなたの好き顔9選♡</h2>
+    <div id="ranking"></div>
+    <button class="again" id="againButton">もう一度遊ぶ</button>
+  </section>
+</div>
+
+<script>
+document.getElementById("startButton").addEventListener("click", startGame);
+document.getElementById("againButton").addEventListener("click", resetGame);
+
+const members = [
+  ["=LOVE","大谷 映美里"],["=LOVE","大場 花菜"],["=LOVE","音嶋 莉沙"],["=LOVE","齋藤 樹愛羅"],["=LOVE","佐々木 舞香"],["=LOVE","髙松 瞳"],["=LOVE","瀧脇 笙古"],["=LOVE","野口 衣織"],["=LOVE","諸橋 沙夏"],["=LOVE","山本 杏奈"],
+  ["≠ME","尾木 波菜"],["≠ME","落合 希来里"],["≠ME","蟹沢 萌子"],["≠ME","河口 夏音"],["≠ME","川中子 奈月心"],["≠ME","櫻井 もも"],["≠ME","鈴木 瞳美"],["≠ME","谷崎 早耶"],["≠ME","冨田 菜々風"],["≠ME","永田 詩央里"],["≠ME","本田 珠由記"],
+  ["≒JOY","逢田 珠里依"],["≒JOY","天野 香乃愛"],["≒JOY","市原 愛弓"],["≒JOY","江角 怜音"],["≒JOY","大信田 美月"],["≒JOY","大西 葵"],["≒JOY","小澤 愛実"],["≒JOY","髙橋 舞"],["≒JOY","藤沢 莉子"],["≒JOY","村山 結香"],["≒JOY","山田 杏佳"],["≒JOY","山野 愛月"]
+];
+
+let scores, round, order;
+
+function startGame(){
+  document.getElementById("intro").style.display="none";
+  document.getElementById("game").style.display="block";
+  scores=members.map(()=>0); round=0;
+  order=shuffle([...Array(members.length).keys()]);
+  showQuestion();
+}
+
+function shuffle(a){return a.sort(()=>Math.random()-0.5)}
+
+function showQuestion(){
+  round++;
+  if(round>15){showResult();return}
+  const picks=shuffle([...order]).slice(0,4);
+  const choices=document.getElementById("choices");
+  document.getElementById("progress").textContent=`QUESTION ${round} / 15`;
+  choices.innerHTML="";
+  picks.forEach(i=>{
+    const [group,name]=members[i];
+    const b=document.createElement("button");
+    b.className="choice";
+    b.innerHTML=`<div class="member-group">${group}</div><div class="name">${name}</div>`;
+    b.onclick=()=>choose(i,picks);
+    choices.appendChild(b);
+  });
+}
+
+function choose(index,picks){
+  scores[index]+=3;
+  picks.filter(i=>i!==index).forEach(i=>scores[i]+=1);
+  showQuestion();
+}
+
+function showResult(){
+  document.getElementById("game").style.display="none";
+  document.getElementById("result").style.display="block";
+  const ranked=members.map((m,i)=>({m,i,s:scores[i]})).sort((a,b)=>b.s-a.s || Math.random()-.5).slice(0,9);
+  document.getElementById("ranking").innerHTML=ranked.map((x,n)=>`
+    <div class="rank">
+      <div class="ranknum">${n+1}</div>
+      <div class="rankname">${x.m[1]}</div>
+      <div class="rankgroup">${x.m[0]}</div>
+    </div>`).join("");
+}
+
+function resetGame(){
+  document.getElementById("result").style.display="none";
+  document.getElementById("intro").style.display="block";
+}
+</script>
+</body>
+</html>
